@@ -1,2 +1,7 @@
-# analise-pratica-series-temporais_predicao-stats-ml
-Meu progresso no livro Análise Prática de Séries Temporais: Predição com Estatística e Machine Learning
+
+<div align="center">
+    <img src="img/Livro.png">
+</div>
+
+# Análise Prática de Séries Temporais: Predição com Estatística e Aprendizado de Máquina
+
