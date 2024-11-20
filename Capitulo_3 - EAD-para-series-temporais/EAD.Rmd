@@ -1,0 +1,247 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r}
+library(tseries)
+```
+
+```{r}
+head(EuStockMarkets, n = 5)
+```
+
+```{r}
+plot(EuStockMarkets)
+```
+
+```{r}
+class(EuStockMarkets)
+```
+
+> A classe mts (serie temporal multivariada) ts(serie temporal)
+
+**frequency :** para descobrir a frequencia dos dados
+
+```{r}
+frequency(EuStockMarkets)
+```
+
+**start e end :** para mostrar o primeiro e o último tempo representado na série
+
+```{r}
+start(EuStockMarkets)
+end(EuStockMarkets)
+```
+
+**window :** Obtem uma seção temporal
+
+```{r}
+head( window(
+  EuStockMarkets, start = 1996, end = 1998
+), n = 4)
+```
+
+### Histogramas
+
+```{r}
+hist(EuStockMarkets[, "SMI"])
+```
+
+> Histograma de dados não transformados é bastante amplo e não mostra uma distribuição normal
+
+```{r}
+hist(diff(EuStockMarkets[, 'SMI']), 30)
+```
+
+> Dados transformados mostra um forma de dist. normal. O hist da diferença dos dados costuma ser mais interessante que um hist de dados não transformados
+
+### Dispersão
+
+```{r}
+# Valores de duas ações ao longo do tempo
+plot(EuStockMarkets[, "SMI"], EuStockMarkets[, "DAX"])
+```
+
+```{r}
+# Valores de mudanças diarias em relação a duas ações
+#  ao longo do tempo
+plot(diff(EuStockMarkets[, "SMI"]), diff(EuStockMarkets[, "DAX"]))
+```
+
+> Apesar de mostrar uma forta correlação não podemos monetizar como trades atuantes
+
+```{r}
+x <- ts(c(1, 2, 3, 4), start = 0, frequency = 1)
+x
+```
+
+```{r}
+lag(x, 1)
+```
+
+```{r}
+plot(lag(diff(EuStockMarkets[, "SMI"]), 1), diff(EuStockMarkets[, "DAX"]))
+```
+
+```{python}
+import pandas as pd
+```
+
+```{python}
+a = pd.Series([10, 20, 30, 40], index=[1, 2, 3, 4])
+a
+```
+
+```{python}
+a.shift(1)
+```
+
+Exatamente! Tanto no R quanto no Pandas:
+
+-   **`lag` (R)** e **`shift` (Pandas)** deslocam os valores da série (ou coluna) no **eixo temporal**.
+
+-   Um deslocamento positivo, como `lag(x, 1)` ou `shift(1)`, **empurra os valores para frente no tempo**, o que na prática parece que estamos "olhando para trás" (ou seja, um **atraso**).
+
+-   Um deslocamento negativo, como `lag(x, -1)` ou `shift(-1)`, **puxa os valores para trás no tempo**, o que na prática parece que estamos "olhando para frente".
+
+### Métodos exploratórios específicos de séries temporais
+
+#### Estacionariedade
+
+A grosso modo uma série temporal estacionária é aquela que tem propriedades estatísticas razoavelmente estáveis ao longo do tempo. Sobre tudo no que diz respeito a **média e variancia.**
+
+```{r}
+options(repr.plot.res = 300)
+plot(AirPassengers)
+```
+
+> -   O grafico acima não é estacionaria, pois o valor médio está aumentando com tempo em vez de permanecer estável.
+>
+> <!-- -->
+>
+> -   A distancia entre as oscilações pico-vale em um base anual está crescendo, assim a variancia do processo está aumentando ao longo do tempo.
+>
+> <!-- -->
+>
+> -   Apresenta um comportamento sazonal
+
+&nbsp;
+
+##### Teste de Dickey-fuller aumentado e KPSS
+
+-   **Hipótese nula (H0)**: A série **tem** uma raiz unitária, ou seja, **não é estacionária**.
+
+-   **Hipótese alternativa (H1)**: A série **não tem** uma raiz unitária, ou seja, **é estacionária**..
+
+```{r}
+adf.test(AirPassengers)
+```
+
+> p_valor \> -7.31 aceita H_0
+
+Metodos KPSS
+
+$Hipótese_{nula} (H0):$ A série é estacionária.
+
+$Hipótese_{alternativa} (H1)$: A série não é estacionária
+
+```{r}
+kpss.test(AirPassengers)
+```
+
+> p-valor \< level rejeita H_0 então a serie não é estacionaria
+
+> **Os teste não são remedios milagrosos para problema de estacionariedade**
+>
+> 1.  Não conseguem distinguir muito as raizes unitarias
+> 2.  Falsos positivos para raizes unitarias
+
+**A estacionariedade é importante por uma série de motivos :**
+
+1.  Grande número de modelos assume um processo estacionário
+2.  Um modelos de series temporal não estacionaria sofrerá variações em relação a sua acurácia ao mesmo tempo que as métricas da séria temporal variam.
+3.  A estacionariedade não é a unica suposição que os modelos de previsão fazem. Outra suposição é a normalização da distribuição das variaveis de entrada ou variavel preditiva.
+
+&nbsp;
+
+##### Funçoes de janelas
+
+```{r}
+
+# cacula a media movel usando a base R
+set.seed(seed = 1)
+x = rnorm(n = 100, mean = 0, sd = 10) + 1:100
+head(x, 10)
+```
+
+```{r}
+# funcao filtro
+mn =function(n) rep(1/n, n)
+```
+
+```{r}
+b =c(1, 2, 3, 4)
+
+mean(b)
+
+filter(b, mn(2))
+```
+
+```{r}
+plot(x, type='l', lwd = 1)
+
+lines(filter(x, mn(5)), col = 2, lwd = 3, lty = 2)
+lines(filter(x, mn(50)), col = 3, lwd = 3, lty = 3)
+```
+
+```{r}
+require(zoo)
+```
+
+```{r}
+# Calculando a janela deslizante com alinhamento à esquerda
+f1_ = rollapply(
+  zoo(x), 20, function(w) min(w), align = "left", partial = TRUE
+)
+
+# Calculando a janela deslizante com alinhamento à direita
+f2_ = rollapply(
+  zoo(x), 20, function(w) min(w), align = "right", partial = TRUE
+)
+```
+
+```{r}
+
+# Plotando a série original
+plot(x, type="l", lwd = 1)
+
+# Adicionando a linha de f1_ (mínimos com alinhamento à esquerda)
+lines(f1_, col = 2, lwd = 3, lty = 2)
+
+# Adicionando a linha de f2_ (mínimos com alinhamento à direita)
+lines(f2_, col = 3, lwd = 3, lty = 3)
+
+```
+
+##### Janelas de espansão
+
+para series temporais estácionarias
+
+```{r}
+cummax(b)
+cumsum(b)
+```
+
+```{r}
+# Plotando a série original
+plot(x, type="l", lwd = 1)
+
+
+lines(cummax(x), col = 2, lwd = 3, lty = 2)
+
+
+lines(cumsum(x)/1:length(x), col = 3, lwd = 3, lty = 3)
+```
