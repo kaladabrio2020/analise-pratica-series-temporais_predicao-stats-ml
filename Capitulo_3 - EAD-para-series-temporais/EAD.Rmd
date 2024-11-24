@@ -111,6 +111,8 @@ Exatamente! Tanto no R quanto no Pandas:
 
 #### Estacionariedade
 
+Muitos modelos de series temporais dependem de uma serie temporal estacionaria.
+
 A grosso modo uma série temporal estacionária é aquela que tem propriedades estatísticas razoavelmente estáveis ao longo do tempo. Sobre tudo no que diz respeito a **média e variancia.**
 
 ```{r}
@@ -128,7 +130,7 @@ plot(AirPassengers)
 >
 > -   Apresenta um comportamento sazonal
 
-&nbsp;
+ 
 
 ##### Teste de Dickey-fuller aumentado e KPSS
 
@@ -165,7 +167,7 @@ kpss.test(AirPassengers)
 2.  Um modelos de series temporal não estacionaria sofrerá variações em relação a sua acurácia ao mesmo tempo que as métricas da séria temporal variam.
 3.  A estacionariedade não é a unica suposição que os modelos de previsão fazem. Outra suposição é a normalização da distribuição das variaveis de entrada ou variavel preditiva.
 
-&nbsp;
+ 
 
 ##### Funçoes de janelas
 

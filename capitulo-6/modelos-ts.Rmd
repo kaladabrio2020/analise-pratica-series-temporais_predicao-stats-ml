@@ -1,0 +1,22 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
+---
+
+```{r}
+require(data.table)
+require(zoo)
+require(forecast)
+```
+
+# Por que não usar uma regressão linear
+
+Regressão linear presume que voce tem dados independentes e identicamente distribuidos(i.i.d). Contudo, em analise de series temporais isso não ocorre pois o pontos proximos no tempo costuman estar fortemente correlacionados uns com os outros, **quando não há correlações temporais os dados de series temporais dificilmente servem para tarefas tradicionais de series temporais:**
+
+-   Predizer o futuro
+
+-   Compreender a dinamica temporal

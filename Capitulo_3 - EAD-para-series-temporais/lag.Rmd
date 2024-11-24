@@ -1,0 +1,53 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+require(forecast)
+require(data.table)
+```
+
+## Lag
+
+O termo em portugues seria defasagem no tempo, por exemplo :
+
+1.  $lag(1)$ : defasagem de 1 periodo ou tempo.
+2.  $lag(-1)$ : defasagem de -1 periodo.
+
+```{r}
+series = ts(c(1, 2, 3, 4, 5))
+series
+```
+
+```{r}
+#usando o shift
+shift(series, 1, type = "lag")
+```
+
+```{r}
+# usando o shift
+shift(series, 1, type = "shift")
+```
+
+```{r}
+plot(shift(diff((EuStockMarkets[, "SMI"])), 1, type="lag") ,  diff((EuStockMarkets[, "DAX"])))
+```
+
+```{r}
+plot(lag(diff((EuStockMarkets[, "SMI"])), 1) ,  diff((EuStockMarkets[, "DAX"])))
+```
+
+```{r}
+x = 1:100
+y = sin(x * pi/3 )
+plot(y, type="b")
+```
+
+```{r}
+cor(y, shift(y, 1), use="pairwise.complete.obs")
+```
+
+```{r}
+cor( y, shift(y, 2), use = "pairwise.complete.obs")
+```
