@@ -62,7 +62,7 @@ pacf(y)
 
 > Pacf mostra quais pontos de dados são mais informativos e quais são os pontos harmonicos em um período de tempo mais curtos.
 
-&nbsp;
+ 
 
 ------------------------------------------------------------------------
 
