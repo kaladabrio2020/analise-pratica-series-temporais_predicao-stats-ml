@@ -1,0 +1,326 @@
+---
+title: "Limpeza de Dados para Séries Temporaias"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+```{r message=FALSE}
+# Importando libs
+require(zoo, quietly = TRUE)
+require(data.table, quietly = TRUE)
+```
+
+# Limpe seu dados
+
+## Lidando com dados ausentes
+
+Os dados ausentes são ainda mais comuns na análise de séries temporais do que na análise de dados transversais, por que a carga da amostragem longitudinaç é bastante pesada:
+
+-   Séries temporais incompletas são batantes comuns
+
+Métodos para lidar com dados ausentes mais comuns são:
+
+1.  imputação
+2.  interpolação
+3.  Exclusão dos periodos de tempos afetados
+
+### Preparando um conj. dados para testar metodologias de imputação
+
+```{r}
+path = 'C:\\Users\\mateu\\Documents\\MEGA\\Projetos-git\\analise-pratica-series-temporais_predicao-stats-ml\\Capitulo_2 - Data Wrangling\\datasets\\UNRATE.csv'
+
+unemp = fread(input = path, sep = ',')
+
+head(x = unemp, n = 5)
+```
+
+```{r}
+# Convertendo para date
+unemp[, DATE := as.Date(DATE)]
+```
+
+```{r}
+# definindo o index
+setkey(unemp, DATE)
+```
+
+```{r}
+head(x = unemp, n = 4)
+```
+
+Gerando um conj. de dados onde os dados estão aleatoriamente ausentes.
+
+```{r}
+set.seed(10)
+rand.unemp.idx = sample(1:nrow(unemp), .1*nrow(unemp))
+
+rand.unemp = unemp[-rand.unemp.idx]
+```
+
+Gerando um conj. de dados onde os dados possuem maior prob. de ausencia quando o desemprego é alto
+
+```{r}
+high.unemp.idx = which(unemp$DATE > 8)
+num.to.select  = .2 * length(high.unemp.idx)
+
+high.unemp.idx = sample(high.unemp.idx, )
+bias.unemp = unemp[-high.unemp.idx]
+
+```
+
+Como excluimos as linhas da nossa tabela de dados para criar um conj. de dados com dados ausentes, precisamos ler as datas ausentes e o valores NA.
+
+```{r}
+todas.datas = seq(
+  from = unemp$DATE[1], to = tail(unemp$DATE, 1),
+  by = "months"
+)
+todas.datas[1:4]
+```
+
+```{r}
+rand.unemp = rand.unemp[J(todas.datas), roll = 0]
+bias.unemp = bias.unemp[J(todas.datas), roll = 0]
+```
+
+```{r}
+rand.unemp[, rtp := is.na(UNRATE)]
+```
+
+```{r}
+head(
+  x = rand.unemp[rtp == TRUE], n = 3
+)
+```
+
+#### Forward Fill
+
+É transferir o último valor conhecido para o valor ausente anterior.
+
+``` r
+na.locf(coluna, na.rm = FALSE)
+```
+
+Imputando no R :
+
+```{r}
+# Para aleatorio
+rand.unemp[, impute.ff := na.locf(UNRATE, na.rm = FALSE)]
+
+# Para o com maior prob. de desemprego
+bias.unemp[, impute.ff := na.locf(UNRATE, na.rm = FALSE)]
+```
+
+Plotando
+
+```{r fig.dpi=300, fig.height=8, fig.width=10, warning=FALSE}
+# plot de um gráfico de amostra que mostra as partes achatadas
+
+unemp[
+  350:400, 
+  plot(DATE, UNRATE, col = 1, lwd = 2, type = 'b')
+]
+rand.unemp[
+  350:400,
+  lines(
+    DATE, impute.ff, col = 2, lwd = 2, lty = 2
+  )
+]
+rand.unemp[350:400][rtp == TRUE,
+                    points(
+                      DATE, impute.ff,
+                      col = 2, pch = 6, cex = 2
+                    )]
+
+```
+
+```{r}
+plot(
+  unemp$UNRATE, rand.unemp$UNRATE
+)
+```
+
+Pode imputar os valor de trás para frente , contudo, se quiser treinar um modelo isso trata de um lookhead.
+
+> Em alguns forward fill é melhor maneira de preencher valores ausentes, mesmo que métodos "mais sofisticados" sejam possíveis.
+>
+> -   Não é exigente em termos computacionais, pode ser facilmente aplicados a dados em tempo real.
+
+#### Média Móvel
+
+Semelhante ao forward fill mas imputa dados com uma média model ou mediana. Voce usa entradas provenientes de multiplos tempos recentes no passado.
+
+Situaçõess em que a média móvel melhor se adéqua á tarefa em questão do que um forward fill :
+
+1.  Se os dados forem ruidosos e voce tem razões para duvidar do valor de qualquer ponto de dados individual em relação a um média geral, recomenda-se usar uma média móvel.
+    -   Forward Fill pode incluir mais ruídos aleatório do que a métrica "verdadeira" que lhe interessa. Média movel pode remover parte desse ruído.
+
+```{r}
+rand.unemp[,
+           impute.rm.nolookahead := rollapply(
+             c(NA, NA, UNRATE), 3,
+                function(x){
+                  if (!is.na(x[3])) x[3] else mean(x, na.rm = TRUE)
+                }
+           )]
+```
+
+```{r}
+bias.unemp[,
+           impute.rm.nolookahead := rollapply(
+             c(NA, NA, UNRATE), 3,
+                function(x){
+                  if (!is.na(x[3])) x[3] else mean(x, na.rm = TRUE)
+                }
+           )]
+```
+
+```{r fig.dpi=300, fig.height=8, fig.width=10, warning=FALSE}
+# plot de um gráfico de amostra que mostra as partes achatadas
+
+unemp[
+  350:400, 
+  plot(DATE, UNRATE, col = 1, lwd = 2, type = 'b')
+]
+rand.unemp[
+  350:400,
+  lines(
+    DATE, impute.rm.nolookahead, col = 2, lwd = 2, lty = 2
+  )
+]
+rand.unemp[350:400][rtp == TRUE,
+                    points(
+                      DATE, impute.rm.nolookahead,
+                      col = 2, pch = 6, cex = 2
+                    )]
+```
+
+Exemplo real do rollapply:
+
+```{r}
+a = rollapply( c(NA, NA, c(1 , 2, NA, NA, 1, 2, 2, NA, 10) ), 3,
+                function(x){
+                  if (!is.na(x[3])) x[3] else mean(x, na.rm = TRUE) }
+           )
+a
+```
+
+Retornando....
+
+Caso não esteja preocupado em fornecer seus dados a um modelo e se sente a vontade de construir um lookahead. Pode usar a media movel incluindo dados do passado e futuro.
+
+```{r}
+rand.unemp[,
+           complete.rm := rollapply(
+             c(NA, UNRATE, NA), 3,
+             function(x){
+               if (!is.na(x[2])) x[2]
+               else mean(x, na.rm = TRUE)
+             }
+           )
+           ]
+```
+
+```{r fig.dpi=300, fig.height=8, fig.width=10, warning=FALSE}
+# plot de um gráfico de amostra que mostra as partes achatadas
+
+unemp[
+  350:400, 
+  plot(DATE, UNRATE, col = 1, lwd = 2, type = 'b')
+]
+rand.unemp[
+  350:400,
+  lines(
+    DATE, complete.rm, col = 2, lwd = 2, lty = 2
+  )
+]
+rand.unemp[350:400][rtp == TRUE,
+                    points(
+                      DATE, complete.rm,
+                      col = 2, pch = 6, cex = 2
+                    )]
+```
+
+Usar a média movel, **reduz a variancia** no conj. de dados.
+
+#### Interpolação
+
+Usa para determinar dados de valores ausentes com base em restrições geometricas sobre como queremos que os dados gerais se comportem.
+
+Pode ser feito semelhante a média movel se quiser imputar valores com base em valores passados e futuros(Isso cria um lookahead)
+
+```{r}
+rand.unemp[, impute.li.lookahead := NULL]
+rand.unemp[, impute.li := NULL]
+```
+
+```{r}
+#interpolaçao linear com lookhead
+rand.unemp[,impute.li.lookahead := na.approx(UNRATE, rule=2)]
+bias.unemp[,impute.li.lookahead := na.approx(UNRATE, rule=2)]
+```
+
+```{r}
+#interpolaçao polinomial com lookhead
+rand.unemp[,impute.sp.lookahead := na.spline(UNRATE)]
+bias.unemp[,impute.sp.lookahead := na.spline(UNRATE)]
+```
+
+```{r fig.dpi=300}
+use.idx = 90:10
+unemp[
+  use.idx, plot(DATE, UNRATE, col = 1, type = 'b')
+]
+rand.unemp[
+  use.idx, lines(DATE, impute.li.lookahead, col = 2, lwd = 2, lty = 2)
+]
+bias.unemp[
+  use.idx, lines(DATE, impute.sp.lookahead, col = 3, lwd = 2, lty = 3)
+]
+
+```
+
+``` r
+# sem lookhead utilizer o rollapply
+na_approx_no_lookahead <- function(x) {
+  for (i in seq_along(x)) {
+    if (is.na(x[i])) {
+      # Interpolação apenas até o índice atual
+      x[1:i] <- na.approx(x[1:i], na.rm = FALSE)
+    }
+  }
+  return(x)
+}
+```
+
+Utilizar quando:
+
+1.  Há tendencias
+
+Quando não utilizar
+
+1.  Quando não tem tendencias
+
+#### Comparação
+
+```{r}
+rand.unemp[,
+  lapply(.SD, 
+         function(x){
+           return(mean((x - unemp$UNRATE)**2, na.rm = TRUE))
+         }),
+  .SDcols = c("impute.ff","impute.rm.nolookahead","complete.rm",   "impute.li.lookahead","impute.sp.lookahead")
+]
+```
+
+### Suavização de dados
+
+Não é raro antes de analisar, suavizar os dados. Sobre tudo quando se trata de visualizações que tem como objetivo contar um historia compreensivel sobre os dados.
+
+#### Por que está suavizandos?
+
+1.  Preparação dos dados
+2.  Geração de caracteristicas
+3.  Predição
+4.  Visualização
