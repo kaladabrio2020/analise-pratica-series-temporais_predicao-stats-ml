@@ -1,0 +1,223 @@
+---
+title: "Análise Exploratória de Dados para Séries Temporais"
+output: html_notebook
+---
+
+```{r}
+library(zoo)
+library(data.table)
+library(forecast)
+library(tseries)
+```
+
+# Métodos conhecidos
+
+## Gráficos e plotagens
+
+```{r}
+head( EuStockMarkets, n = 4)
+```
+
+```{r}
+plot(EuStockMarkets)
+```
+
+Objetos *ts* vem com algumas funções convenientes :
+
+1.  frequency : para descobrir a frequencia anual dos dados.
+
+    ```{r}
+    frequency(EuStockMarkets)
+    ```
+
+<!-- -->
+
+2.  start e end : para encontrar o primeiro e o último tempo representado na série
+
+    ```{r}
+    start(EuStockMarkets)
+    end(EuStockMarkets)
+    ```
+
+3.  window : para obter uma seção temporal dos dados.
+
+    ```{r}
+    head( window(EuStockMarkets, start=1997, end=1998), n = 5)
+    ```
+
+    ### Histogramas
+
+    ```{r}
+    hist( EuStockMarkets[, "SMI"], 30)
+    ```
+
+```{r}
+hist( diff(EuStockMarkets[, "SMI"]), 30)
+```
+
+Hist da diferença dos dados costuma ser mais interessante, afinal o mais interessante é como o valor muda de medição para a próxima ao invés de mudar para medição real desse valor.
+
+O histograma da diferença nos informa que o valor a série temporal aumentou(valores de diferença positivos) e diminuiu(valor da diferença negativo) aproximadamenta na mesma quantidade ao longo do tempo
+
+### Grafico de dispersão
+
+```{r}
+plot(EuStockMarkets[, "SMI"], EuStockMarkets[, "DAX"])
+```
+
+```{r}
+cor.test(EuStockMarkets[, "SMI"], EuStockMarkets[, "DAX"])
+```
+
+Como p_valor é menor que 0.05 rejeito h_0 e aceito que correlação entre as duas variaveis é estatisticamente significativa, onde, quanto maior o valor da ação de a maior será de b. Contudo existe razões para desconfiarmos.
+
+```{r}
+plot(diff(EuStockMarkets[, "SMI"]), diff(EuStockMarkets[, "DAX"]))
+```
+
+```{r}
+cor.test(diff(EuStockMarkets[, "SMI"]), diff(EuStockMarkets[, "DAX"]))
+```
+
+Mesmo vale para correlaçao dos dados diferenciados.
+
+Para saber se elas estão correlacionadas é descobrir se a mudança anterior no tempo de uma ação pode predizer a mudança posterior no tempo de outra ação. Para tal, recuamos uma das diferenças das ações em 1 antes de analisarmos o grafico de dispersão.
+
+```{r}
+plot(
+  shift(diff(EuStockMarkets[, "SMI"]), 1, type='lag'),
+  diff(EuStockMarkets[, "DAX"]))
+```
+
+```{r}
+cor.test(
+   shift(diff(EuStockMarkets[, "SMI"]), 1, type='lag'),
+  diff(EuStockMarkets[, "DAX"])
+)
+```
+
+Como p_valor \> 0.05 aceito h_0 onde a correlaçao entre as duas variaveis não é estatisticamente significativa. Não posso afirmar que exites correlaçao entre duas variaveis.
+
+# Métodos Exploratórios Específicos de séries temporais
+
+## Compreendendo Estacionariedade
+
+Muitos modelos estatisticos tradicionais de séries temporais dependem de uma série temporal estacionário. Grosso modo, uma série temporal estacionaria é aquela que tem propriedades estatísticas razoavelmente estáveis ao longo do tempo, sobretudo no que diz respeito a média e á variância.
+
+```{r}
+plot(AirPassengers)
+```
+
+### Teste dickey fuller aumentado
+
+$$
+H_0 : \text{possui raiz unitária, não é estacionaria} \\
+H_a : \text{Não possui raiz unitaria é estacionária}
+$$
+
+```{r}
+adf.test(AirPassengers)
+```
+
+### Teste KPSS
+
+$$
+H_0 : \text{é estacionaria} \\
+H_a : \text{não é estacionária}
+$$
+
+```{r}
+kpss.test(AirPassengers)
+```
+
+### Pratica e realidade
+
+É comum que um série temporal se torne estacionária o suficiente com algumas trasnformações simples :
+
+-   log transform
+
+-   sqrt transform
+
+-   BoxCox : outra suposiçao que modelos fazem é a normalização da distribuição das variaveis de entrada ou variavel predita.
+
+### Funções de janela
+
+#### Janela Rolante
+
+Ela é particularmente útil quando você deseja calcular métricas (como médias, somas ou variâncias) ou aplicar modelos a subperíodos da série temporal para capturar padrões locais
+
+```{r}
+
+set.seed(seed = 10)
+x = rnorm(n = 100, mean = 0, sd = 10) + 1:100
+
+mn = function(n) rep(1/n, n)
+
+plot(x, type = 'l', lwd=1)
+lines(filter(x, mn(5)), col = 2, lwd = 3, lty = 2)
+lines(filter(x, mn(50)), col = 3, lwd = 3, lty = 3)
+```
+
+```{r}
+filter(x, mn(5))
+```
+
+```{python}
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+```
+
+```{python}
+x = np.random.RandomState(10).normal(size=100)
+x = pd.Series(x, name="x")
+```
+
+```{python}
+plt.close()
+plt.plot(range(100),x)
+plt.plot(range(100),x.rolling(10).mean(), label='mean')
+plt.plot(range(100),x.rolling(10).std(), label='std')
+plt.legend(())
+plt.show()
+```
+
+Imagine uma série temporal de temperaturas diárias. Se quisermos calcular a **média móvel de 7 dias**:
+
+-   Defina uma janela de 7 dias.
+
+-   Calcule a média dos primeiros 7 dias.
+
+-   Desloque a janela em 1 dia e repita o cálculo até o final da série.
+
+## Self-Correlation
+
+É em essencia a ideia que um valor em um série temporal em um determinado ponto no tempo pode estar correlaciona com o valor em outro ponto no tempo.
+
+> mede como uma série temporal se relaciona consigo mesma em diferentes atrasos/defasagem no tempo(lags). É útil para identificar padrões repetitivos, como sazonalidade, tendências ou ciclos.
+
+```{python}
+x.autocorr(lag=1)
+```
+
+> Autocorrelação na defasagem de tempo 1 é -0.04
+
+### Função de autocorrelação
+
+É a correlação de um sinal com uma cópia atrasada de si mesmo.
+
+```{r}
+x = 1:100
+y = sin(x * pi/3)
+plot(y, type='b')
+```
+
+```{r}
+acf(y)
+```
+
+```{r}
+cor(y, shift(y, 1, type='lag'), use="pairwise.complete.obs")
+```
+
+> Quando a **Autocorrelação de uma Defasagem (ACF - AutoCorrelation Function)** ultrapassa um **threshold** (limite), significa que a correlação entre os valores da série temporal e seus valores defasados (lag) é estatisticamente significativa. Isso pode indicar a presença de padrões ou dependências na série temporal para aquela defasagem específica.

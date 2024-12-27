@@ -9,6 +9,7 @@ output:
 # Importando libs
 require(zoo, quietly = TRUE)
 require(data.table, quietly = TRUE)
+require(forecast, quietly = TRUE)
 ```
 
 # Limpe seu dados
@@ -318,9 +319,90 @@ rand.unemp[,
 
 Não é raro antes de analisar, suavizar os dados. Sobre tudo quando se trata de visualizações que tem como objetivo contar um historia compreensivel sobre os dados.
 
-#### Por que está suavizandos?
+#### Por que está suavizandos? a suavização pode ter muitas finalidades
 
 1.  Preparação dos dados
 2.  Geração de caracteristicas
-3.  Predição
+3.  Predição : a forma mais simples de predição para alguns tipos de processos é reversão á média, que voce obtem ao fazer a predição a partir de uma caracteristicas suavizadas
 4.  Visualização
+
+#### Suavização exponencial
+
+Se quizer tratar os dados mais recentes como os dados mais informativos, nesse caso, a suavização exponencial é uma boa opção.
+
+```{python}
+import pandas as pd
+path = "C:\\Users\\mateu\\Documents\\MEGA\\Projetos-git\\analise-pratica-series-temporais_predicao-stats-ml\\Capitulo_2 - Data Wrangling\\datasets\\passengers\\AirPassengers.csv"
+data = pd.read_csv(path)
+```
+
+```{python}
+data.columns
+```
+
+```{python}
+data["air.5"] = data["passengers"].ewm(alpha=0.5).mean()
+data["air.9"] = data["passengers"].ewm(alpha=0.9).mean()
+```
+
+O parametro alpha é o fator de suavização, quanto mais alto o valor de alpha mais rapido é atualizado proximo ao seu preco atual.
+
+> **Suavização exponencial simples :** não apresenta um bom desempenho no caso de dados com uma tendencia a longo prazo
+
+#### Métodos de Holt e HW
+
+São dois metodos de suavização exponencial aplicados a dados com uma tendencias ou com tendencias e sazonalidades
+
+```{r}
+
+path = "C:\\Users\\mateu\\Documents\\MEGA\\Projetos-git\\analise-pratica-series-temporais_predicao-stats-ml\\Capitulo_2 - Data Wrangling\\datasets\\passengers\\AirPassengers.csv"
+air = fread(path)
+```
+
+```{r}
+h_ = holt(air$passengers, alpha = 0.5, h = length(air$passengers))
+```
+
+```{r fig.width=10}
+par(mfrow=c(1,2))
+plot(air$passengers, type = 'l')
+plot(h_$fitted, type='l')
+```
+
+\
+
+```{r fig.width=10}
+# Suavização exponencial simples
+exp = ses(AirPassengers, alpha = 0.05)
+plot(exp$fitted)
+```
+
+### Dados Sazonais
+
+Sazonalidade é qualquer tipo de comportamento recorrente no qual a frequencia é estável.
+
+```{r}
+plot(AirPassengers)
+```
+
+```{r}
+plot(AirPassengers, type='p')
+```
+
+> Gráfico de dispersão mostra algumas informações mais claramente do que o gráfico de linha. Variancia de nossos dados está aumentando, assim como a média.
+
+Esses dados apresentam uma tendencia, assim provavelmente recorreremos a data transformation:
+
+-   log transform
+
+-   data differencing
+
+Decompondo dos dados no R
+
+```{r}
+plot(stl(AirPassengers, "periodic"))
+```
+
+**TREND : tendencia**
+
+**SEASONAL : sazonal**
