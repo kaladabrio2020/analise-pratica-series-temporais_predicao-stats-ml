@@ -2,9 +2,12 @@
 __pycache__/
 *.py[cod]
 *$py.class
-
+data_diff.txt
+electrick
 # C extensions
 *.so
+dataset/
+datasets/
 
 # Distribution / packaging
 .Python
